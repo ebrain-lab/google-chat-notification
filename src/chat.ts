@@ -2,6 +2,8 @@ import * as github from '@actions/github';
 import * as axios from 'axios';
 import { Status } from './status';
 
+export type MessageType = 'text' | 'card'
+
 const statusColorPalette: { [key in Status]: string } = {
   success: "#2cbe4e",
   cancelled: "#ffc107",
@@ -21,16 +23,20 @@ const textButton = (text: string, url: string) => ({
   }
 });
 
-export async function notify(name: string, url: string, status: Status) {
+export async function notify(name: string, url: string, status: Status, type: MessageType) {
   const { owner, repo } = github.context.repo;
-  const { eventName, sha, ref } = github.context;
-  const { number } = github.context.issue;
+  const { eventName, sha, ref, payload, issue } = github.context;
+  const { number } = issue;
   const repoUrl = `https://github.com/${owner}/${repo}`;
   const eventPath = eventName === 'pull_request' ? `/pull/${number}` : `/commit/${sha}`;
   const eventUrl = `${repoUrl}${eventPath}`;
   const checksUrl = `${repoUrl}${eventPath}/checks`;
+  const prUrl = `${repoUrl}/pull/${number}`
+  const prTitle = payload && payload.pull_request && payload.pull_request.title
 
-  const body = {
+  const body = type === 'text' ? {
+    text: `${name} <${prUrl}|#${number}>\n <${checksUrl}|workflow>, <${repoUrl}|repo>`
+  } : {
     cards: [{
       sections: [
         {
